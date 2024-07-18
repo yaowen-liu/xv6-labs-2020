@@ -24,6 +24,15 @@ sys_getpid(void)
 }
 
 uint64
+sys_trace(void)
+{
+  /* 获取系统调用的参数 */
+  argint(0,&myproc()->trace_mask);
+
+  return 0;
+}
+
+uint64
 sys_fork(void)
 {
   return fork();
