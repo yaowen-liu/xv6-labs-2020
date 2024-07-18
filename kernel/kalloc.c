@@ -24,6 +24,20 @@ struct {
 } kmem;
 
 void
+freebytes(uint64 *dst)
+{
+  *dst = 0;
+  struct run *p = kmem.freelist; // 用于遍历
+
+  acquire(&kmem.lock);
+  while (p) {
+    *dst += PGSIZE;
+    p = p->next;
+  }
+  release(&kmem.lock);
+}
+
+void
 kinit()
 {
   initlock(&kmem.lock, "kmem");

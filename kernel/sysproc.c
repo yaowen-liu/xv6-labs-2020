@@ -7,6 +7,8 @@
 #include "spinlock.h"
 #include "proc.h"
 
+#include "sysinfo.h"
+
 uint64
 sys_exit(void)
 {
@@ -29,6 +31,25 @@ sys_trace(void)
   /* 获取系统调用的参数 */
   argint(0,&myproc()->trace_mask);
 
+  return 0;
+}
+
+uint64 sys_sysinfo(void)
+{
+  
+  struct sysinfo info;
+  /* 获取空闲内存字节数量 */
+  freebytes(&info.freemem);
+  /* 获取有效进程数量 */
+  procnum(&info.nproc);
+
+  /* 获取虚拟地址 */
+  uint64 dstaddr; 
+  /* 先拿到地址 */
+  if( argaddr(0, &dstaddr) < 0)
+    return -1;
+  if(copyout(myproc()->pagetable, dstaddr, (char *)&info, sizeof(info)) < 0)
+  return -1;
   return 0;
 }
 
