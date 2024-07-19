@@ -440,3 +440,41 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+/* 递归查询子级页表信息 */
+void vmprint_traver(pagetable_t pagetable,int level)
+{
+  level++;
+  /* 遍历传进来的页表 */
+  for(int i=0;i<512;i++)
+  {
+    /* 判断页表是否有效 */
+    if(pagetable[i]&PTE_V)
+    {
+      /* 先根据级别打印相关信息 */
+      printf("..");
+      for(int j=0;j<level-1;j++)
+      {
+        printf(" ..");
+      }
+      uint64 pa=PTE2PA(pagetable[i]);
+      printf("%d: pte %p pa %p\n",i,pagetable[i],pa);
+      /* 判断是否是最后一级页表 */
+      if((pagetable[i]&(PTE_R|PTE_X|PTE_W))==0)
+      {
+        /* 不是最后一级页表 */
+        vmprint_traver((pagetable_t)pa,level);
+      }
+      else
+      {
+        /* 是最后一级了 */
+      }
+    }
+  }
+}
+void vmprint(pagetable_t pagetable)
+{
+  /* 打印第一级根页表的地址（这里的地址是物理地址） */
+  printf("page table %p\n",pagetable);
+  /* 递归查询子级页表信息 */
+  vmprint_traver(pagetable,0);
+}

@@ -158,6 +158,8 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
+                /* 打印页表信息函数 */
+void            vmprint(pagetable_t pagetable);
 void            kvminit(void);
 void            kvminithart(void);
 uint64          kvmpa(uint64);
