@@ -86,6 +86,10 @@ void            panic(char*) __attribute__((noreturn));
 void            printfinit(void);
 
 // proc.c
+/* 释放内核页表 */
+void            proc_freekernelpt(pagetable_t kernelpt);
+/* 将内核页表加载到核心的satp寄存器 */
+void            proc_kvminithart(pagetable_t pagetable);
 int             cpuid(void);
 void            exit(int);
 int             fork(void);
@@ -158,7 +162,11 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
-                /* 打印页表信息函数 */
+/* 创建一个新的内核页表并完成初始化 */
+pagetable_t     proc_kpt_init();
+/* 建立地址映射关系 */
+void            uvmmap(pagetable_t pagetable,uint64 va,uint64 pa,uint64 sz,int perm);
+/* 打印页表信息函数 */
 void            vmprint(pagetable_t pagetable);
 void            kvminit(void);
 void            kvminithart(void);
