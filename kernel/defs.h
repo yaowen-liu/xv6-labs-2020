@@ -161,7 +161,15 @@ void            uartputc(int);
 void            uartputc_sync(int);
 int             uartgetc(void);
 
+//vmcopyin.c
+// Copy from user to kernel.
+int             copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
+// Copy a null-terminated string from user to kernel.
+int             copyinstr_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);
+
 // vm.c
+/* 将用户页表内容拷贝到内核页表 */
+int             u2kvmcopy(pagetable_t u_pagetable,pagetable_t k_pagetable, uint64 k_oldsize,uint64 k_newsize);
 /* 创建一个新的内核页表并完成初始化 */
 pagetable_t     proc_kpt_init();
 /* 建立地址映射关系 */
