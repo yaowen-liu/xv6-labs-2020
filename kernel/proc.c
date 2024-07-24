@@ -107,6 +107,18 @@ allocproc(void)
 found:
   p->pid = allocpid();
 
+    /* 初始化alarm参数 */
+  p->alarm_interval=0;          // 报警间隔
+  p->alarm_handler=0;           // 报警处理函数
+  p->ticks_count=0;             // 两次报警间的滴答计数
+  p->is_alarming=0;
+  /* Allocate an alarm trapframe page. */
+  if((p->alarm_trapframe = (struct trapframe *)kalloc()) == 0)
+  {
+    release(&p->lock);
+    return 0;
+  }
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
@@ -150,6 +162,13 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+      /* 初始化alarm参数 */
+  p->alarm_interval=0;          // 报警间隔
+  p->alarm_handler=0;           // 报警处理函数
+  p->ticks_count=0;             // 两次报警间的滴答计数
+  if(p->alarm_trapframe)
+    kfree((void*)p->alarm_trapframe);
+  p->alarm_trapframe = 0;
 }
 
 // Create a user page table for a given process,

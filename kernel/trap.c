@@ -80,7 +80,20 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
+  {
+    /* 每次报警 p->ticks_count 自加 1 直到达到指定次数 并且要防止重复调用*/
+    if(++(p->ticks_count)==p->alarm_interval&&p->is_alarming==0&&p->alarm_interval!=0)
+    {
+      /* 把原本的陷进帧先保存下来 用户指定的alarmhandle r函数处理完了发起sigreturn调用 返回之前的程序继续执行*/
+      *(p->alarm_trapframe)=*(p->trapframe);
+      p->is_alarming=1;
+      /* 更改陷阱帧中保留的程序计数器，注意一定要在保存寄存器内容后再设置epc */
+      p->trapframe->epc=(uint64)p->alarm_handler;
+      p->ticks_count=0;
+    }
     yield();
+  }
+    
 
   usertrapret();
 }
