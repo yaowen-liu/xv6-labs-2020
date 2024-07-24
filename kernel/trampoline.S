@@ -8,10 +8,11 @@
 	# kernel.ld causes this to be aligned
         # to a page boundary.
         #
-	.section trampsec
+	.section trampsec #这行指令将接下来的代码放在一个名为 trampsec 的段（section）中
 .globl trampoline
 trampoline:
-.align 4
+.align 4 #这行指令将下一个数据或代码对齐到 4 字节边界
+         #确保接下来的代码或数据从一个 4 字节边界开始，这在某些体系结构上可以提高访问速度或满足对齐要求。
 .globl uservec
 uservec:    
 	#
@@ -29,6 +30,7 @@ uservec:
         csrrw a0, sscratch, a0
 
         # save the user registers in TRAPFRAME
+        # 使用 sd 指令将用户态的寄存器值存储到 TRAPFRAME 对应的位置
         sd ra, 40(a0)
         sd sp, 48(a0)
         sd gp, 56(a0)
@@ -61,8 +63,8 @@ uservec:
         sd t6, 280(a0)
 
 	# save the user a0 in p->trapframe->a0
-        csrr t0, sscratch
-        sd t0, 112(a0)
+        csrr t0, sscratch #读出原本的用户态的a0值
+        sd t0, 112(a0)    #也存在trapframe中
 
         # restore kernel stack pointer from p->trapframe->kernel_sp
         ld sp, 8(a0)

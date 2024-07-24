@@ -36,21 +36,22 @@ trapinithart(void)
 void
 usertrap(void)
 {
-  int which_dev = 0;
+  int which_dev = 0;/* 定义一个名为 which_dev 的整型变量，并初始化为 0。这个变量用来存储哪个设备中断被触发 */
 
-  if((r_sstatus() & SSTATUS_SPP) != 0)
+  if((r_sstatus() & SSTATUS_SPP) != 0)/* 检查 sstatus 寄存器的 SPP 位，如果它不为 0，说明陷入（trap）不是从用户模式触发的，*/
     panic("usertrap: not from user mode");
 
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
-  w_stvec((uint64)kernelvec);
+  w_stvec((uint64)kernelvec);/* 将陷阱向量寄存器 stvec 设置为 kernelvec 的地址 */
+  /* 现在进入内核了 要运行内核的相关代码 因此陷进处理程序不再是这个 需要更改 */
 
   struct proc *p = myproc();
   
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
-  if(r_scause() == 8){
+  if(r_scause() == 8){/* 判断trap原因 */
     // system call
 
     if(p->killed)
@@ -58,6 +59,7 @@ usertrap(void)
 
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
+    /* 将用户程序计数器 epc 向前移动 4 个字节，跳过 ecall 指令，使得返回用户模式时不会再次触发系统调用 */
     p->trapframe->epc += 4;
 
     // an interrupt will change sstatus &c registers,
