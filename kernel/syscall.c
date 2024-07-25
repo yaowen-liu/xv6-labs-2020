@@ -68,6 +68,27 @@ int
 argaddr(int n, uint64 *ip)
 {
   *ip = argraw(n);
+  /* 在系统调用的时候之所以需要处理lazy allocation地址的情况 是因为触发缺页异常是通过mmu翻译失败才触发的 
+  而如果我们通过软件来翻译是触发不了的 因此我们需要单独在系统调用时处理这种情况（和缺页异常处理一样） */
+  struct proc* p=myproc();
+  if(walkaddr(p->pagetable,*ip)==0)
+  {
+    char* pa;
+    if(PGROUNDUP(p->trapframe->sp)-1<*ip&&*ip<p->sz&&(pa=kalloc())!=0)
+    {
+      memset(pa,0,PGSIZE);
+      if(mappages(p->pagetable,PGROUNDDOWN(*ip),PGSIZE,(uint64)pa,PTE_R|PTE_W|PTE_X|PTE_U)!=0)
+      {
+        kfree(pa);
+        return -1;
+      }
+    }
+    else
+    {
+      return -1;
+    }
+  }
+
   return 0;
 }
 
