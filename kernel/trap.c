@@ -67,7 +67,18 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  } 
+  else if(r_scause()==13||r_scause()==15)
+  {
+    /* 获取出错的虚拟地址 */
+    uint64 fault_va=r_stval();
+    /* 从新申请内存 写时复制 复制一个page（核心思想） */
+    if(fault_va>=p->sz||cowpage(p->pagetable,fault_va)!=0||cowalloc(p->pagetable,PGROUNDDOWN(fault_va))==0)
+    {
+      p->killed=1;
+    }
+  }
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
