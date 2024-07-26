@@ -9,11 +9,30 @@
 
 #define STACK_SIZE  8192
 #define MAX_THREAD  4
+// 用户线程的上下文结构体
+struct tcontext {
+  uint64 ra;
+  uint64 sp;
 
+  // callee-saved
+  uint64 s0;
+  uint64 s1;
+  uint64 s2;
+  uint64 s3;
+  uint64 s4;
+  uint64 s5;
+  uint64 s6;
+  uint64 s7;
+  uint64 s8;
+  uint64 s9;
+  uint64 s10;
+  uint64 s11;
+};
 
 struct thread {
   char       stack[STACK_SIZE]; /* the thread's stack */
   int        state;             /* FREE, RUNNING, RUNNABLE */
+  struct tcontext context;
 
 };
 struct thread all_thread[MAX_THREAD];
@@ -63,6 +82,7 @@ thread_schedule(void)
      * Invoke thread_switch to switch from t to next_thread:
      * thread_switch(??, ??);
      */
+    thread_switch((uint64)&t->context,(uint64)&current_thread->context);
   } else
     next_thread = 0;
 }
@@ -77,6 +97,8 @@ thread_create(void (*func)())
   }
   t->state = RUNNABLE;
   // YOUR CODE HERE
+  t->context.ra=(uint64)func; /* 设定函数返回地址 理解的就是函数的地址 */
+  t->context.sp=(uint64)t->stack+STACK_SIZE; /* 设定栈指针 */
 }
 
 void 
@@ -158,6 +180,9 @@ main(int argc, char *argv[])
   thread_create(thread_a);
   thread_create(thread_b);
   thread_create(thread_c);
+  // printf("all threads started!\n");
   thread_schedule();
+  // printf("all threads finished!\n");
+  /* 经过测试 三个子线程运行完不会回到主线程而是直接结束 */
   exit(0);
 }
