@@ -1,3 +1,13 @@
+/*
+ * @Author: lyw 1479749199@qq.com
+ * @Date: 2024-07-25 23:13:34
+ * @LastEditors: lyw 1479749199@qq.com
+ * @LastEditTime: 2024-07-31 20:52:25
+ * @FilePath: /xv6-labs-2020/kernel/kalloc.c
+ * @Description: 
+ * 
+ * Copyright (c) 2024 by ${git_name_email}, All Rights Reserved. 
+ */
 // Physical memory allocator, for user processes,
 // kernel stacks, page-table pages,
 // and pipe buffers. Allocates whole 4096-byte pages.
@@ -21,12 +31,23 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem[NCPU];/* 为每个cpu都维护一个内存空闲链表 */
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
+  /* 
+  修改内容：
+  为所有锁初始化以“kmem”开头的名称
+  该函数只会被一个CPU调用，
+  freerange调用kfree将所有空闲内存挂在该CPU的空闲列表上 
+  */
+  char lockname[8];
+  for(int i=0;i<NCPU;i++)
+  {
+    snprintf(lockname,sizeof(lockname),"kmem_%d",i);
+    initlock(&kmem[i].lock, lockname);
+  }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -56,10 +77,13 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  push_off();/* 关中断 */
+  int id = cpuid();
+  acquire(&kmem[id].lock);
+  r->next = kmem[id].freelist;
+  kmem[id].freelist = r;
+  release(&kmem[id].lock);
+  pop_off();/* 开中断 */
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -70,11 +94,34 @@ kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
+  push_off();/* 关中断 */
+  int id = cpuid();
+  acquire(&kmem[id].lock);
+  r = kmem[id].freelist;
   if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+    kmem[id].freelist = r->next;
+  else
+  {
+    /* 当空闲链表为空时 */
+    int another_id;
+    for(another_id=0;another_id<NCPU;another_id++)
+    {
+      /* 在其他cpu内存空闲链表取内存 */
+      if(another_id==id)
+        continue;
+      acquire(&kmem[another_id].lock);
+      r = kmem[another_id].freelist;
+      if(r)
+      {
+        kmem[another_id].freelist = r->next;
+        release(&kmem[another_id].lock);
+        break;
+      }
+      release(&kmem[another_id].lock);
+    }
+  }
+  release(&kmem[id].lock);
+  pop_off();/* 开中断 */
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
