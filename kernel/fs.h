@@ -1,3 +1,13 @@
+/*
+ * @Author: lyw 1479749199@qq.com
+ * @Date: 2024-07-18 00:21:16
+ * @LastEditors: lyw 1479749199@qq.com
+ * @LastEditTime: 2024-08-05 18:20:48
+ * @FilePath: /xv6-labs-2020/kernel/fs.h
+ * @Description: 
+ * 
+ * Copyright (c) 2024 by ${git_name_email}, All Rights Reserved. 
+ */
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
 
@@ -24,9 +34,11 @@ struct superblock {
 
 #define FSMAGIC 0x10203040
 
-#define NDIRECT 12
+#define NDIRECT 11
 #define NINDIRECT (BSIZE / sizeof(uint))
-#define MAXFILE (NDIRECT + NINDIRECT)
+#define NDINDIRECT (BSIZE / sizeof(uint))*(BSIZE / sizeof(uint))
+#define NADDR_PER_BLOCK (BSIZE / sizeof(uint))  // 一个块中的地址数量
+#define MAXFILE (NDIRECT + NINDIRECT + NDINDIRECT)
 
 // On-disk inode structure
 struct dinode {
@@ -35,7 +47,7 @@ struct dinode {
   short minor;          // Minor device number (T_DEVICE only)
   short nlink;          // Number of links to inode in file system
   uint size;            // Size of file (bytes)
-  uint addrs[NDIRECT+1];   // Data block addresses
+  uint addrs[NDIRECT+2];   // Data block addresses
 };
 
 // Inodes per block.

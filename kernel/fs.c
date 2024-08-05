@@ -380,13 +380,15 @@ bmap(struct inode *ip, uint bn)
   uint addr, *a;
   struct buf *bp;
 
+  /* 当数据块编号小于直接块数量 */
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev);
     return addr;
   }
   bn -= NDIRECT;
-
+  
+  /* 当数据块编号小于一级间接块中数据块数量 */
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
@@ -395,6 +397,42 @@ bmap(struct inode *ip, uint bn)
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
       a[bn] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+    return addr;
+  }
+  bn-=NINDIRECT;
+
+  /* 当数据块编号小于二级级间接块中数据块数量 */
+  if(bn<NDINDIRECT)
+  {
+    /* 1.先拿到二级间接块 */  
+    if((addr=ip->addrs[NDIRECT+1])==0)
+      ip->addrs[NDIRECT+1]=addr=balloc(ip->dev);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    /* 2.找到数据块的具体位置 */
+    /* 要查找的块号位于二级间接块中的位置 */
+    int level2_idx = bn / NADDR_PER_BLOCK;  
+    /* 要查找的块号位于一级间接块中的位置 */
+    int level1_idx = bn % NADDR_PER_BLOCK;
+    /* 3.取出一级数据块 */
+    if((addr=a[level2_idx])==0)
+    {
+      a[level2_idx]=addr=balloc(ip->dev);
+      /* 更改了当前块的内容，标记以供后续写回磁盘 */
+      log_write(bp);
+    }
+    brelse(bp);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+
+    /* 4.取出数据块 */
+    if((addr=a[level1_idx])==0)
+    {
+      a[level1_idx]=addr=balloc(ip->dev);
+      /* 更改了当前块的内容，标记以供后续写回磁盘 */
       log_write(bp);
     }
     brelse(bp);
@@ -409,9 +447,9 @@ bmap(struct inode *ip, uint bn)
 void
 itrunc(struct inode *ip)
 {
-  int i, j;
-  struct buf *bp;
-  uint *a;
+  int i, j,k;
+  struct buf *bp,*bp1;
+  uint *a,*a1;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -430,6 +468,30 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+  if(ip->addrs[NDIRECT+1])
+  {
+    bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    a = (uint*)bp->data;
+    for(j = 0; j < NADDR_PER_BLOCK; j++)
+    {
+      if(a[j])
+      {
+        bp1 = bread(ip->dev, a[j]);
+        a1 = (uint*)bp1->data;
+        for(k=0;k<NADDR_PER_BLOCK;k++)
+        {
+          if(a1[k])
+            bfree(ip->dev,a1[k]);
+        }
+        brelse(bp1);
+        bfree(ip->dev, a[j]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT+1]);
+    ip->addrs[NDIRECT+1] = 0;
   }
 
   ip->size = 0;
